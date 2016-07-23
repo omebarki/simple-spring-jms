@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:jms="http://www.springframework.org/schema/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans 
+                           http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/context 
+                           http://www.springframework.org/schema/context/spring-context.xsd
+                          "
+>
+
+    <context:component-scan base-package=" org.springbyexample.jms"/>
+
+
+    <bean id="jndiTemplate" class="org.springframework.jndi.JndiTemplate">
+        <property name="environment">
+            <props>
+                <prop key="java.naming.factory.initial">weblogic.jndi.WLInitialContextFactory</prop>
+                <prop key="java.naming.provider.url">t3://192.168.90.129:8003</prop>
+            </props>
+        </property>
+    </bean>
+    <!-- JMS Topic Connection Factory -->
+    <bean id="jmsConnectionFactory" class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiTemplate" ref="jndiTemplate"/>
+        <property name="jndiName" value="ConnectionFactoryOmar"/>
+        <property name="lookupOnStartup" value="true"/>
+        <property name="cache" value="false"/>
+        <property name="proxyInterface" value="javax.jms.ConnectionFactory"/>
+    </bean>
+    <bean id="destination"
+          class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiTemplate">
+            <ref bean="jndiTemplate"/>
+        </property>
+        <property name="jndiName">
+            <value>jms/QueueOmar</value>
+        </property>
+
+    </bean>
+    <!-- JMS Producer Configuration -->
+    <bean id="jmsProducerConnectionFactory"
+          class="org.springframework.jms.connection.SingleConnectionFactory"
+          depends-on="destination"
+          p:targetConnectionFactory-ref="jmsConnectionFactory"/>
+
+    <bean id="jmsProducerTemplate" class="org.springframework.jms.core.JmsTemplate"
+          p:connectionFactory-ref="jmsProducerConnectionFactory"
+          p:defaultDestination-ref="destination"/>
+
+    <!-- JMS Consumer Configuration -->
+    <bean id="jmsConsumerConnectionFactory"
+          class="org.springframework.jms.connection.SingleConnectionFactory"
+          depends-on="destination"
+          p:targetConnectionFactory-ref="jmsConnectionFactory"/>
+
+
+    <bean id="jmsContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="jmsConsumerConnectionFactory"/>
+        <property name="destination" ref="destination"/>
+        <property name="messageListener" ref="jmsMessageListener"/>
+        <property name="cacheLevelName" value="CACHE_CONSUMER" />
+    </bean>
+
+    <!-- Counter for consumer to increment and test to verify count -->
+    <bean id="counter" class="java.util.concurrent.atomic.AtomicInteger"/>
+
+</beans>
